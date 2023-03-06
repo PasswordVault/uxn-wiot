@@ -6,6 +6,9 @@ extern "C" {
 void console_printf(const char* format, ...);
 }
 
+void cont();
+void dir();
+
 int load(Uxn *u, char *filepath);
 void run(Uxn *u);
 
@@ -149,10 +152,14 @@ static void
 monitor(Uxn* u, char* line)
 {
     switch (line[0]) {
+        case 'd':
+            dir();
+            break;
         case 'l':
             load(u, line+1);
             break;
         case 'r':
+            cont();
             run(u);
             break;
         case '.':
@@ -168,7 +175,7 @@ monitor(Uxn* u, char* line)
             is_edit = true;
             break;
         default:
-            console_printf("Unknown '%c'. Try (l)oad, (r)un, (.)dump, (;)disass.\n", line[0]);
+            console_printf("Unknown '%c'. Try (d)ir, (l)oad, (r)un, (.)dump, (;)disass.\n", line[0]);
     }
 }
 

@@ -10,7 +10,7 @@ static char *rom = "/spiffs/ufo.rom";
 //#include <Seeed_Arduino_FS.h>
 #include <SPI.h>
 #include <SD.h>
-static char *rom = "draw.rom";
+static char *rom = "p-ctrl.rom";
 #endif
 
 extern "C" {
@@ -140,6 +140,12 @@ void printDirectory(File dir, int numTabs) {
   }
 }
 
+void
+dir() {
+	File root = SD.open("/");
+	printDirectory(root, 0);
+}
+
 int
 load(Uxn *u, char *filepath)
 {
@@ -154,14 +160,6 @@ load(Uxn *u, char *filepath)
 
 #ifdef USE_SDCARD
 	Serial.printf("Loading ROM %s\n", filepath);
-	if (!SD.begin(SDCARD_SS_PIN)) {
-		Serial.println("Initialization failed!");
-		return 0;
-	}
-
-	File root = SD.open("/");
-	printDirectory(root, 0);
-
 	if (!SD.exists(filepath)) {
 		Serial.println("ROM does not exist");
 		return 0;
@@ -177,16 +175,23 @@ load(Uxn *u, char *filepath)
 }
 
 void
+stop() {
+	devsystem->dat[0xf] = 1;
+}
+
+void
+cont() {
+	devsystem->dat[0xf] = 0;
+}
+
+void
 run(Uxn *u)
 {
-  bool running = false;
-
   char c;
   unsigned long ts, elapsed;
-  Serial.println("Running...");
   devscreen_redraw();
   while (true) {
-	Serial.println("Loop...");
+	Serial.println("Running...");
 	while(!devsystem->dat[0xf]) {
 		ts = micros();
 		if(Serial.available() > 0) {
@@ -207,12 +212,14 @@ run(Uxn *u)
 			delayMicroseconds(16666 - elapsed);
 
 	}
+	Serial.print("Monitor...\nuxn> ");
+	// If not running, jump to monitor
 	while (devsystem->dat[0xf]) {
 		if (Serial.available()) {
-			mon_onechar(u, Serial.read());
+			Serial.readBytes(&c, 1);
+			mon_onechar(u, c);
 		}
 	}
-
   }
 }
 
@@ -237,6 +244,12 @@ void setup() {
   
 #ifdef USE_SPIFFS
   SPIFFS.begin();
+#endif
+
+#ifdef USE_SDCARD
+	if (!SD.begin(SDCARD_SS_PIN)) {
+		error("Boot", "Initializing SD card failed!");
+	}
 #endif
 
   Uint8 *memory = (Uint8 *)calloc(0xffff, sizeof(Uint8));

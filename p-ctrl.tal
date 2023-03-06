@@ -1,0 +1,46 @@
+%BREAKPOINT { #0101 #0e DEO2 }
+%EMIT { #18 DEO }
+%EMIT2 { #18 DEO2 }
+%PRINT_I8 {
+  DUP #64 DIV DUP #30 ADD EMIT #64 MUL SUB
+  DUP #0a DIV DUP #30 ADD EMIT #0a MUL SUB
+  #30 ADD EMIT
+}
+%PRINT_I16 {
+  DUP2 #03e8 DIV2 DUP2 #0030 ADD2 EMIT2 #03e8 MUL2 SUB2
+  DUP2 #0064 DIV2 DUP2 #0030 ADD2 EMIT2 #0064 MUL2 SUB2
+  DUP2 #000a DIV2 DUP2 #0030 ADD2 EMIT2 #000a MUL2 SUB2
+  LIT2 0030 ADD2 EMIT2
+}
+%MOD  { DUP2 DIV MUL SUB }
+%MOD2 { DIV2k MUL2 SUB2 }
+
+|80 @Controller [ &vector $2 &button $1 &key $1 ]
+|0100 ;main-0 JSR2
+BRK
+@main-0
+    ;str-0 ( String address )
+    ;print-str JSR2 ( Print string )
+    #0a EMIT ( Finish with a newline )
+  ;ctrl-1
+    .Controller/vector
+    DEO2
+BRK ( end of function )
+@ctrl-1
+    ;str-1 ( String address )
+    ;print-str JSR2 ( Print string )
+    #0a EMIT ( Finish with a newline )
+    .Controller/button
+    DEI
+    PRINT_I8 ( Print number )
+    #0a EMIT ( Finish with a newline )
+BRK ( end of function )
+( Strings )
+@print-str
+  &loop
+    LDAk #18 DEO
+    INC2 LDAk ,&loop JCN
+  POP2
+JMP2r
+@str-0 "Controller 20 "test $1
+@str-1 "Pressed $1

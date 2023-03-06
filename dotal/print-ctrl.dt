@@ -1,0 +1,9 @@
+fn main() do
+  put("Controller test")
+  send(.Controller/vector, :ctrl)
+end
+
+fn ctrl() do
+  put("Pressed")
+  put(get(.Controller/button))
+end

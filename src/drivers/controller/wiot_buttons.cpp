@@ -9,6 +9,8 @@ extern "C" {
 #include <devices/controller.h>
 }
 
+void stop();
+
 EasyButton up_button(WIO_5S_UP);
 EasyButton down_button(WIO_5S_DOWN);
 EasyButton left_button(WIO_5S_LEFT);
@@ -106,7 +108,8 @@ devctrl_handle(Device *d)
   }
   a_button.read();
   if (a_button.wasPressed()) {
-    controller_down(d, 0x01);
+    //controller_down(d, 0x01);
+    stop();
   }
   if (a_button.wasReleased()) {
     controller_up(d, 0x01);
