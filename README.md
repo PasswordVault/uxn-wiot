@@ -1,6 +1,6 @@
-# Uxn-Esp32
+# Uxn-Wiot
 
-A port of the [Uxn](https://wiki.xxiivv.com/site/uxn.html) virtual machine and [Varvara](https://wiki.xxiivv.com/site/varvara.html) environment to the esp32 platform.
+A port of the [Uxn](https://wiki.xxiivv.com/site/uxn.html) virtual machine and [Varvara](https://wiki.xxiivv.com/site/varvara.html) environment to the Wio Terminal platform.
 
 # How to build it
 
@@ -8,12 +8,10 @@ Install [PlatforimIO Core](https://platformio.org/install/cli) if you want to us
 
 
 ```
-git clone https://github.com/max22-/uxn-esp32
-cd uxn-esp32
+git clone https://github.com/PasswordVault/uxn-wiot
+cd uxn-wiot
 pio run
 ```
-
-Then edit [User_Setup.h](https://github.com/Bodmer/TFT_eSPI/blob/master/User_Setup.h) in the TFT_eSPI lib directory which should have appeared in .pio/libdeps/esp32dev/TFT_eSPI after the build is complete.
 
 Rename wifi_credentials.sample.h to wifi_credentials.h and modify its contents. Idem for the configuration at the top of main.cpp. Wifi is used only to get time from an NTP server for the datetime device. You can comment out USE_WIFI if you dan't want to use it.
 

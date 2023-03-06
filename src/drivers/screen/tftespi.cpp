@@ -10,19 +10,33 @@ extern "C" {
 extern void error(const char *msg, const char *err);
 
 TFT_eSPI tft = TFT_eSPI();
+#ifdef USE_TFT_DMA
 Uint16 *line;
+#else
+#define DISPLAY_WIDTH 320
+#define DISPLAY_HEIGHT 240
+TFT_eSprite display = TFT_eSprite(&tft);
+#endif
 
 int 
 devscreen_init() {
   tft.begin();
+#ifdef USE_TFT_DMA
   tft.initDMA();
-  tft.setRotation(3);
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextColor(TFT_GREEN);
-  tft.setCursor(0, 0);
+#endif
+  //tft.setRotation(3);
+  //tft.fillScreen(TFT_BLACK);
+  //tft.setTextColor(TFT_GREEN);
+  //tft.setCursor(0, 0);
+#ifdef USE_TFT_DMA
   line = (Uint16*)heap_caps_malloc(tft.width() * sizeof(Uint16), MALLOC_CAP_8BIT | MALLOC_CAP_DMA);
   if(line == NULL)
     error("devscreen_init", "not enough memory");
+#else
+  display.setColorDepth(4);
+  display.createSprite(DISPLAY_WIDTH, DISPLAY_HEIGHT);
+  display.fillSprite(TFT_BLACK);
+#endif
   screen_resize(&uxn_screen, tft.width(), tft.height());
   if(uxn_screen.pixels == NULL)
     error("devscreen_init", "not enough memory");
@@ -43,6 +57,7 @@ devscreen_redraw() {
     palette[i] = c >> 8 | c << 8; /* We swap bytes for the tft screen */
   }
 
+#ifdef USE_TFT_DMA
   tft.startWrite();
   tft.setAddrWindow(0, 0, w, h);
 
@@ -60,6 +75,18 @@ devscreen_redraw() {
     tft.pushPixelsDMA(line, w);
   }
   tft.endWrite();
+#else
+  for(y=0; y < h; y += 1) {
+    for(x = 0; x < w; x += 2) {
+      p = pixels[(y*w+x)/2];
+      p1 = p >> 4;
+      p2 = p & 0xf;
+      display.drawPixel(x, y, palette[p1]);
+      display.drawPixel(x+1, y, palette[p2]);
+    }
+  }
+  display.pushSprite(0, 0);
+#endif
   uxn_screen.changed = 0;
   /* Serial.printf("\n%ld us\n", micros() - timestamp); */
   return 1;

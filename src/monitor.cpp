@@ -1,0 +1,206 @@
+#include <Arduino.h>
+
+extern "C" {
+#include <unistd.h>
+#include "uxn.h"
+void console_printf(const char* format, ...);
+}
+
+int load(Uxn *u, char *filepath);
+void run(Uxn *u);
+
+#define MODE_SHORT 0x20
+#define MODE_RETURN 0x40
+#define MODE_KEEP 0x80
+
+#define LINE_LENGTH 40
+static char line[LINE_LENGTH];
+static int cursor = 0;
+static bool is_edit = false;
+static short start;
+
+void
+console_printf(const char* format, ...)
+{
+	va_list args;
+	va_start(args, format);   
+
+	char buf[80];
+    vsnprintf(buf, 80, format, args);
+    Serial.print(buf);
+	va_end(args);   
+}
+
+static void
+diss(uint8_t* mem, uint16_t addr)
+{
+    uint16_t end = addr + 40;
+    uint8_t instr;
+    uint8_t val8;
+    uint16_t val16;
+    
+    static char code[6];
+    char ops[][4] = {
+        /* Stack */      "LIT", "INC", "POP", "DUP", "NIP", "SWP", "OVR", "ROT",
+        /* Logic */      "EQU", "NEQ", "GTH", "LTH", "JMP", "JNZ", "JSR", "STH",
+        /* Memory */     "LDZ", "STZ", "LDR", "STR", "LDA", "STA", "DEI", "DEO",
+        /* Arithmetic */ "ADD", "SUB", "MUL", "DIV", "AND", "ORA", "EOR", "SFT",
+    };
+
+    while (addr < end) {
+        instr = mem[addr];
+        if (instr == 0) {
+            strcpy(code, "BRK");
+        }
+        else {
+            strcpy(code, ops[instr & 0x1f]);
+            if (instr & MODE_SHORT) {
+                strcat(code, "2");
+            }
+            if (instr & MODE_KEEP) {
+                strcat(code, "k");
+            }
+            if (instr & MODE_RETURN) {
+                strcat(code, "r");
+            }
+        }
+        console_printf("%04x %s", addr, code);
+        if (instr == 0x20) {
+            val16 = (mem[addr + 1] << 8) + mem[addr + 2];
+            console_printf(" %04x", val16);
+            addr += 3;
+        }
+        else
+        if (instr == 0x40 || instr == 0x80) {
+            val8 = mem[addr + 1];
+            console_printf(" %02x", val8);
+            addr += 2;
+        }
+        else {
+            addr += 1;
+        }
+        console_printf("\n");
+    }
+}
+
+static void
+dump(uint8_t* mem, uint16_t addr)
+{
+    for (int y = 0; y < 4; y++) {
+        console_printf("\n%04x", addr + y * 8);
+        for (int x = 0; x < 8; x++) {
+            console_printf(" %02x", mem[addr + y * 8 + x]);
+        }
+    }
+    console_printf("\n\n");
+}
+
+static void
+print_line()
+{
+    Serial.print(is_edit ? "\r...> " : "\ruxn> ");
+    for (int i = 0; i < LINE_LENGTH; i++) {
+        Serial.print(' ');
+    }
+    Serial.print(is_edit ? "\r...> " : "\ruxn> ");
+    Serial.print(line);
+}
+
+void
+mon_inspect(Stack *s, char *name)
+{
+	Uint8 x, y;
+	console_printf("\n%s\n", name);
+	for(y = 0; y < 0x04; ++y) {
+		for(x = 0; x < 0x08; ++x) {
+			Uint8 p = y * 0x08 + x;
+			console_printf(
+				p == s->ptr ? "[%02x]" : " %02x ",
+				s->dat[p]);
+		}
+		console_printf("\n");
+	}
+}
+
+void
+mon_init()
+{
+    print_line();
+}
+
+static void
+edit(Uxn* u, char* line) {
+    char* prev;
+    uint8_t byte;
+
+    while (true) {
+        prev = line;
+        byte = strtoul(line, &line, 16);
+        if (prev < line) {
+            u->ram[start++] = byte;
+        }
+        else {
+            break;
+        }
+    }
+}
+
+static void
+monitor(Uxn* u, char* line)
+{
+    switch (line[0]) {
+        case 'l':
+            load(u, line+1);
+            break;
+        case 'r':
+            run(u);
+            break;
+        case '.':
+            start = 0xffff & strtoul(line+1, NULL, 16);
+            dump(u->ram, start);
+            break;
+        case ';':
+            start = 0xffff & strtoul(line+1, NULL, 16);
+            diss(u->ram, start);
+            break;
+        case 'e':
+            start = 0xffff & strtoul(line+1, NULL, 16);
+            is_edit = true;
+            break;
+        default:
+            console_printf("Unknown '%c'. Try (l)oad, (r)un, (.)dump, (;)disass.\n", line[0]);
+    }
+}
+
+void
+mon_onechar(Uxn* u, char c)
+{
+    if (cursor > 0 && c == 0x08) {
+        line[--cursor] = '\0';
+    }
+    else
+    if (c == 0x0d) {
+        // discard
+    }
+    else
+    if (c == 0x0a) {
+        Serial.println();
+        cursor = 0;
+        if (line[0] == '\0') {
+            is_edit = false;
+        }
+        if (is_edit) {
+            edit(u, line);
+        }
+        else {
+            monitor(u, line);
+        }
+        line[0] = '\0';
+    }
+    else
+    if (cursor < LINE_LENGTH && ((c >= '0' && c <= 'z') || c == '/' || c == '.' || c == ' ')) {
+        line[cursor++] = c;
+        line[cursor] = '\0';
+    }
+    print_line();
+}

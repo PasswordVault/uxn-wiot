@@ -4,6 +4,7 @@
 
 int specific_boot() {
     M5.begin();
+    devmouse_init();
     return 1;
 }
 
